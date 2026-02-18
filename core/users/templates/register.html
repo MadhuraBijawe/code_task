@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create Account — NexChat</title>
+    <meta name="description" content="Sign up for NexChat — real-time messaging platform." />
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/chat.css' %}" />
+</head>
+
+<body>
+
+    <!-- ── Toast Container ──────────────────────────────────────── -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ── Register Page Layout ─────────────────────────────────── -->
+    <div class="register-page">
+
+        <!-- Left branding panel -->
+        <div class="register-panel-left">
+            <div class="left-content">
+                <div class="brand">
+                    <div class="brand-icon">💬</div>
+                    NexChat
+                </div>
+
+                <h1 class="left-tagline">
+                    Connect with people<br />
+                    <span>in real time.</span>
+                </h1>
+                <p class="left-desc">
+                    NexChat brings you instant messaging, nearby user discovery,
+                    and secure JWT-powered authentication — all in one place.
+                </p>
+
+                <div class="left-features">
+                    <div class="feature-item">
+                        <div class="feature-icon">⚡</div>
+                        Real-time WebSocket chat
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📍</div>
+                        Discover nearby users
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🔐</div>
+                        Secure JWT authentication
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">✉️</div>
+                        Email OTP verification
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right form panel -->
+        <div class="register-panel-right">
+            <div class="register-form-wrap">
+
+                <div class="brand" style="margin-bottom:28px; display:none;" id="mobileBrand">
+                    <div class="brand-icon">💬</div>
+                    NexChat
+                </div>
+
+                <!-- ── Step 1: Registration Form ──────────────────────── -->
+                <div id="stepRegister">
+                    <h1 class="form-title">Create your account</h1>
+                    <p class="form-subtitle">Already have one? <a href="#">Sign in</a></p>
+
+                    <form class="register-form" id="registerForm" novalidate>
+
+                        <!-- Avatar upload -->
+                        <div class="field">
+                            <label>Profile Photo</label>
+                            <div class="avatar-upload">
+                                <div class="avatar-preview" id="avatarPreview"
+                                    onclick="document.getElementById('profileImageInput').click()">
+                                    <span class="avatar-preview-icon" id="avatarIcon">👤</span>
+                                    <img id="avatarImg" src="" alt="" style="display:none;" />
+                                </div>
+                                <div class="avatar-upload-btn">
+                                    <button type="button" class="btn btn-ghost"
+                                        style="padding:8px 16px;font-size:0.82rem;"
+                                        onclick="document.getElementById('profileImageInput').click()">
+                                        Upload photo
+                                    </button>
+                                    <span>JPG, PNG up to 5MB</span>
+                                </div>
+                                <input type="file" id="profileImageInput" name="profile_image" accept="image/*" />
+                            </div>
+                        </div>
+
+                        <!-- Name + Mobile -->
+                        <div class="form-row">
+                            <div class="field">
+                                <label for="name">Full Name</label>
+                                <input type="text" id="name" name="name" class="input" placeholder="Jane Doe"
+                                    required />
+                                <span class="field-error" id="nameError"></span>
+                            </div>
+                            <div class="field">
+                                <label for="mobile">Mobile</label>
+                                <input type="tel" id="mobile" name="mobile" class="input"
+                                    placeholder="+91 98765 43210" />
+                                <span class="field-error" id="mobileError"></span>
+                            </div>
+                        </div>
+
+                        <!-- Email -->
+                        <div class="field">
+                            <label for="email">Email Address</label>
+                            <input type="email" id="email" name="email" class="input" placeholder="jane@example.com"
+                                required />
+                            <span class="field-error" id="emailError"></span>
+                        </div>
+
+                        <!-- Password -->
+                        <div class="field">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" name="password" class="input"
+                                placeholder="At least 8 characters" required minlength="8" />
+                            <span class="field-hint">Use a mix of letters, numbers, and symbols.</span>
+                            <span class="field-error" id="passwordError"></span>
+                        </div>
+
+                        <!-- Lat / Lon -->
+                        <div class="form-row">
+                            <div class="field">
+                                <label for="latitude">Latitude</label>
+                                <input type="number" id="latitude" name="latitude" class="input" placeholder="28.6139"
+                                    step="any" />
+                            </div>
+                            <div class="field">
+                                <label for="longitude">Longitude</label>
+                                <input type="number" id="longitude" name="longitude" class="input" placeholder="77.2090"
+                                    step="any" />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="registerBtn" style="width:100%;padding:14px;">
+                            <span id="registerBtnText">Create Account</span>
+                        </button>
+
+                    </form>
+
+                    <p class="form-footer" style="margin-top:20px;">
+                        By signing up you agree to our <a href="#">Terms</a> &amp; <a href="#">Privacy Policy</a>.
+                    </p>
+                </div>
+
+                <!-- ── Step 2: OTP Verification (shown after registration) ── -->
+                <div id="stepOTP" style="display:none;">
+                    <h1 class="form-title">Check your email</h1>
+                    <p class="form-subtitle" id="otpEmailHint">We sent a 6-digit code to your email.</p>
+
+                    <div class="otp-section visible" style="margin-top:24px;">
+                        <div>
+                            <div class="otp-title">Enter verification code</div>
+                            <div class="otp-desc">The code expires in 5 minutes.</div>
+                        </div>
+
+                        <div class="otp-input-row">
+                            <input type="text" id="otpInput" class="input" maxlength="6" placeholder="• • • • • •"
+                                autocomplete="one-time-code" />
+                        </div>
+
+                        <button class="btn btn-primary" id="verifyBtn" style="width:100%;padding:14px;">
+                            <span id="verifyBtnText">Verify &amp; Continue</span>
+                        </button>
+
+                        <p class="form-footer">
+                            Didn't receive it?
+                            <a href="#" id="resendLink">Resend code</a>
+                        </p>
+                    </div>
+
+                    <button class="btn btn-ghost" style="width:100%;margin-top:12px;" onclick="showStep('register')">
+                        ← Back to registration
+                    </button>
+                </div>
+
+                <!-- ── Step 3: Success ─────────────────────────────────── -->
+                <div id="stepSuccess" style="display:none;text-align:center;padding:40px 0;">
+                    <div style="font-size:4rem;margin-bottom:16px;">🎉</div>
+                    <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:8px;">You're all set!</h2>
+                    <p style="color:var(--text-2);margin-bottom:28px;">Your account has been verified successfully.</p>
+                    <a href="/api/chat/" class="btn btn-primary" style="padding:14px 32px;">
+                        Open Chat →
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ── JavaScript ────────────────────────────────────────────── -->
+    <script>
+        /* ── Responsive: show brand on mobile ─────────────────────── */
+        if (window.innerWidth <= 900) {
+            document.getElementById('mobileBrand').style.display = 'flex';
+        }
+
+        /* ── Step navigation ───────────────────────────────────────── */
+        function showStep(step) {
+            document.getElementById('stepRegister').style.display = step === 'register' ? 'block' : 'none';
+            document.getElementById('stepOTP').style.display = step === 'otp' ? 'block' : 'none';
+            document.getElementById('stepSuccess').style.display = step === 'success' ? 'block' : 'none';
+        }
+
+        /* ── Toast system ──────────────────────────────────────────── */
+        function showToast(message, type = 'info') {
+            const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span class="toast-icon">${icons[type]}</span><span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('out');
+                toast.addEventListener('animationend', () => toast.remove());
+            }, 4000);
+        }
+
+        /* ── Field validation helpers ──────────────────────────────── */
+        function setFieldError(inputId, errorId, message) {
+            const input = document.getElementById(inputId);
+            const error = document.getElementById(errorId);
+            if (message) {
+                input.classList.add('error');
+                input.classList.remove('success');
+                error.textContent = message;
+                error.classList.add('visible');
+            } else {
+                input.classList.remove('error');
+                input.classList.add('success');
+                error.classList.remove('visible');
+            }
+        }
+
+        function clearFieldErrors() {
+            ['name', 'email', 'password', 'mobile'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.classList.remove('error', 'success'); }
+                const err = document.getElementById(id + 'Error');
+                if (err) err.classList.remove('visible');
+            });
+        }
+
+        /* ── Profile image preview ─────────────────────────────────── */
+        document.getElementById('profileImageInput').addEventListener('change', function () {
+            const file = this.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('Image must be under 5 MB.', 'error');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.getElementById('avatarImg');
+                img.src = e.target.result;
+                img.style.display = 'block';
+                document.getElementById('avatarIcon').style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        });
+
+        /* ── Registration form submit ──────────────────────────────── */
+        let registeredEmail = '';
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearFieldErrors();
+
+            const btn = document.getElementById('registerBtn');
+            const text = document.getElementById('registerBtnText');
+
+            // Client-side validation
+            let valid = true;
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!name) { setFieldError('name', 'nameError', 'Full name is required.'); valid = false; }
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                setFieldError('email', 'emailError', 'Enter a valid email address.'); valid = false;
+            }
+            if (password.length < 8) {
+                setFieldError('password', 'passwordError', 'Password must be at least 8 characters.'); valid = false;
+            }
+            if (!valid) return;
+
+            // Show loading state
+            btn.disabled = true;
+            text.innerHTML = '<div class="spinner"></div> Creating account…';
+
+            const formData = new FormData(document.getElementById('registerForm'));
+
+            try {
+                const res = await fetch('/api/register/', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (res.ok) {
+                    registeredEmail = email;
+                    document.getElementById('otpEmailHint').textContent =
+                        `We sent a 6-digit code to ${email}`;
+                    showToast('Account created! Check your email for the OTP.', 'success');
+                    showStep('otp');
+                } else {
+                    // Map DRF field errors back to inline messages
+                    if (data.email) setFieldError('email', 'emailError', data.email.join(' '));
+                    if (data.name) setFieldError('name', 'nameError', data.name.join(' '));
+                    if (data.password) setFieldError('password', 'passwordError', data.password.join(' '));
+                    if (data.mobile) setFieldError('mobile', 'mobileError', data.mobile.join(' '));
+
+                    const generic = data.non_field_errors || data.detail;
+                    if (generic) showToast(Array.isArray(generic) ? generic.join(' ') : generic, 'error');
+                    else if (!data.email && !data.name && !data.password) {
+                        showToast('Registration failed. Please try again.', 'error');
+                    }
+                }
+            } catch {
+                showToast('Network error. Please check your connection.', 'error');
+            } finally {
+                btn.disabled = false;
+                text.textContent = 'Create Account';
+            }
+        });
+
+        /* ── OTP verification ──────────────────────────────────────── */
+        document.getElementById('verifyBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('verifyBtn');
+            const text = document.getElementById('verifyBtnText');
+            const code = document.getElementById('otpInput').value.trim();
+
+            if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+                showToast('Please enter the 6-digit code from your email.', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            text.innerHTML = '<div class="spinner"></div> Verifying…';
+
+            try {
+                const res = await fetch('/api/verify-otp/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: registeredEmail, code }),
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    showToast('Email verified successfully!', 'success');
+                    showStep('success');
+                } else {
+                    const msg = data.error || data.detail || 'Invalid or expired OTP.';
+                    showToast(msg, 'error');
+                }
+            } catch {
+                showToast('Network error. Please try again.', 'error');
+            } finally {
+                btn.disabled = false;
+                text.textContent = 'Verify & Continue';
+            }
+        });
+
+        /* ── Resend OTP ────────────────────────────────────────────── */
+        document.getElementById('resendLink').addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (!registeredEmail) return;
+            showToast('Resending OTP…', 'info');
+            try {
+                const formData = new FormData();
+                formData.append('email', registeredEmail);
+                // Re-register triggers a new OTP — or add a dedicated resend endpoint
+                showToast('Please use the original OTP or re-register.', 'info');
+            } catch {
+                showToast('Could not resend. Please try again.', 'error');
+            }
+        });
+
+        /* ── OTP input: only allow digits ──────────────────────────── */
+        document.getElementById('otpInput').addEventListener('input', function () {
+            this.value = this.value.replace(/\D/g, '').slice(0, 6);
+        });
+    </script>
+
+</body>
+
+</html>

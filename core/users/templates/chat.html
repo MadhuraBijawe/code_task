@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexChat — Live Chat</title>
+  <meta name="description" content="Real-time chat powered by Django Channels." />
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/chat.css' %}" />
+</head>
+
+<body>
+
+  <!-- ── Toast Container ──────────────────────────────────────── -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="chat-page">
+
+    <!-- ══════════════════════════════════════════════════════════
+       HEADER
+  ══════════════════════════════════════════════════════════ -->
+    <header class="chat-header">
+      <div class="chat-header-left">
+        <div class="brand">
+          <div class="brand-icon">💬</div>
+          NexChat
+        </div>
+      </div>
+      <div class="chat-header-right">
+        <div class="connection-badge disconnected" id="connBadge">
+          <div class="conn-dot"></div>
+          <span id="connText">Connecting…</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ══════════════════════════════════════════════════════════
+       BODY
+  ══════════════════════════════════════════════════════════ -->
+    <div class="chat-body">
+
+      <!-- Sidebar -->
+      <aside class="chat-sidebar">
+        <div class="sidebar-header">Channels</div>
+        <div class="sidebar-room">
+          <div class="room-avatar">🌐</div>
+          <div>
+            <div class="room-name">General</div>
+            <div class="room-desc">Everyone's here</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main chat -->
+      <div class="chat-main">
+
+        <!-- Sender identity bar -->
+        <div class="sender-bar">
+          <label for="senderIdInput">Your User ID</label>
+          <input type="number" id="senderIdInput" class="input" placeholder="e.g. 1" min="1" />
+          <span class="sender-bar-hint">Enter your user ID to send messages</span>
+        </div>
+
+        <!-- Messages -->
+        <div class="messages-area" id="messagesArea">
+
+          <div class="date-separator">Today</div>
+
+          {% for msg in messages %}
+          <div class="msg-row received" id="msg-{{ msg.id }}">
+            <div class="msg-avatar">{{ msg.sender.email|slice:":2"|upper }}</div>
+            <div class="msg-content">
+              <span class="msg-sender-name">{{ msg.sender.email }}</span>
+              <div class="msg-bubble">{{ msg.content }}</div>
+              <span class="msg-time">{{ msg.timestamp|date:"H:i" }}</span>
+            </div>
+          </div>
+          {% empty %}
+          <div class="empty-state" id="emptyState">
+            <div class="empty-state-icon">💬</div>
+            <div class="empty-state-title">No messages yet</div>
+            <div class="empty-state-desc">Be the first to say something!</div>
+          </div>
+          {% endfor %}
+
+        </div>
+
+        <!-- Input area -->
+        <div class="chat-input-area">
+          <div class="chat-input-row">
+            <textarea id="messageInput" placeholder="Type a message… (Enter to send, Shift+Enter for new line)" rows="1"
+              autocomplete="off"></textarea>
+            <button class="send-btn" id="sendBtn" disabled title="Send message">
+              ➤
+            </button>
+          </div>
+          <div class="input-hint">Press <kbd
+              style="background:var(--surface3);padding:1px 5px;border-radius:4px;font-size:0.7rem;">Enter</kbd> to send
+            &nbsp;·&nbsp; <kbd
+              style="background:var(--surface3);padding:1px 5px;border-radius:4px;font-size:0.7rem;">Shift+Enter</kbd>
+            for new line</div>
+        </div>
+
+      </div><!-- /chat-main -->
+    </div><!-- /chat-body -->
+  </div><!-- /chat-page -->
+
+  <!-- ══════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════ -->
+  <script>
+    /* ── DOM refs ──────────────────────────────────────────────── */
+    const messagesArea = document.getElementById('messagesArea');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const connBadge = document.getElementById('connBadge');
+    const connText = document.getElementById('connText');
+    const senderIdInput = document.getElementById('senderIdInput');
+
+    /* ── Toast ─────────────────────────────────────────────────── */
+    function showToast(message, type = 'info') {
+      const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `<span class="toast-icon">${icons[type]}</span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('out');
+        toast.addEventListener('animationend', () => toast.remove());
+      }, 4000);
+    }
+
+    /* ── Auto-resize textarea ──────────────────────────────────── */
+    messageInput.addEventListener('input', () => {
+      messageInput.style.height = 'auto';
+      messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+      sendBtn.disabled = messageInput.value.trim() === '';
+    });
+
+    /* ── WebSocket setup ───────────────────────────────────────── */
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    let ws;
+    let reconnectTimer;
+    let reconnectDelay = 1000;
+
+    function connectWS() {
+      ws = new WebSocket(`${wsProtocol}://${window.location.host}/ws/chat/`);
+
+      ws.onopen = () => {
+        connBadge.className = 'connection-badge connected';
+        connText.textContent = 'Connected';
+        reconnectDelay = 1000;
+        showToast('Connected to chat server.', 'success');
+      };
+
+      ws.onclose = () => {
+        connBadge.className = 'connection-badge disconnected';
+        connText.textContent = 'Disconnected';
+        // Auto-reconnect with exponential back-off (max 30s)
+        reconnectTimer = setTimeout(() => {
+          reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+          connText.textContent = 'Reconnecting…';
+          connectWS();
+        }, reconnectDelay);
+      };
+
+      ws.onerror = () => {
+        showToast('WebSocket error. Attempting to reconnect…', 'error');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          appendMessage(data.sender, data.message, false);
+        } catch {
+          console.warn('Malformed WS message:', event.data);
+        }
+      };
+    }
+
+    connectWS();
+
+    /* ── Send message ──────────────────────────────────────────── */
+    function sendMessage() {
+      const content = messageInput.value.trim();
+      const senderId = parseInt(senderIdInput.value, 10);
+
+      if (!content) return;
+
+      if (!senderId || isNaN(senderId)) {
+        showToast('Please enter your User ID before sending.', 'error');
+        senderIdInput.focus();
+        return;
+      }
+
+      if (ws.readyState !== WebSocket.OPEN) {
+        showToast('Not connected. Please wait…', 'error');
+        return;
+      }
+
+      ws.send(JSON.stringify({ message: content, sender_id: senderId }));
+
+      // Optimistically show own message as "sent"
+      appendMessage('You', content, true);
+
+      messageInput.value = '';
+      messageInput.style.height = 'auto';
+      sendBtn.disabled = true;
+      messageInput.focus();
+    }
+
+    /* ── Keyboard shortcuts ────────────────────────────────────── */
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    /* ── Append a message bubble ───────────────────────────────── */
+    function appendMessage(sender, content, isSelf) {
+      // Remove empty state if present
+      const empty = document.getElementById('emptyState');
+      if (empty) empty.remove();
+
+      const initials = sender.slice(0, 2).toUpperCase();
+      const now = new Date();
+      const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const row = document.createElement('div');
+      row.className = `msg-row ${isSelf ? 'sent' : 'received'}`;
+
+      row.innerHTML = `
+      <div class="msg-avatar">${escapeHtml(initials)}</div>
+      <div class="msg-content">
+        <span class="msg-sender-name">${escapeHtml(sender)}</span>
+        <div class="msg-bubble">${escapeHtml(content)}</div>
+        <span class="msg-time">${time}</span>
+      </div>
+    `;
+
+      messagesArea.appendChild(row);
+      scrollToBottom();
+    }
+
+    /* ── Scroll to bottom ──────────────────────────────────────── */
+    function scrollToBottom(smooth = true) {
+      messagesArea.scrollTo({
+        top: messagesArea.scrollHeight,
+        behavior: smooth ? 'smooth' : 'instant',
+      });
+    }
+
+    /* ── HTML escape ───────────────────────────────────────────── */
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    /* ── Initial scroll ────────────────────────────────────────── */
+    scrollToBottom(false);
+
+    /* ── Cleanup on page unload ────────────────────────────────── */
+    window.addEventListener('beforeunload', () => {
+      clearTimeout(reconnectTimer);
+      if (ws) ws.close();
+    });
+  </script>
+
+</body>
+
+</html>
